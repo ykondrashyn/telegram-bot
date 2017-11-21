@@ -1,4 +1,5 @@
 import sqlite3
+
 """
 A class for interaction with SQLITE DB
 
@@ -37,22 +38,34 @@ class DBsqlite(object):
         message_id = query.message.message_id
         user_id = query.from_user.id
         chosen_emoji = query.data
-        print(query.from_user)
         self.add_user(query.from_user)
-        
         try:
-
             # get reactions for message
             self.cursor.execute("SELECT tmsg_id, description, result FROM rates JOIN reactions ON rates.reaction_id = reactions.id \
 				JOIN messages ON message_id = messages.id \
 				WHERE messages.tmsg_id = ? AND messages.chat_id = ?", (message_id, chat_id))
             reactions = self.cursor.fetchall()
+            self.cursor.execute("SELECT id FROM reactions WHERE description=?", (chosen_emoji,))
+            bid = self.cursor.fetchall()
+            print (bid)
+
         except sqlite3.Error as error:
             print ('An error occurred:', error.args[0])
-        
             # TODO:
             # increment count in rates table for chosen reaction using description
             # add user to voters table
+"""
+INSERT INTO rates values (
+(SELECT id from messages WHERE tmsg_id=997),
+(SELECT id from reactions WHERE description="test128293"),
+57)
+
+--SELECT messages.id, reactions.id from rates 
+--JOIN messages ON message_id = messages.id
+--JOIN reactions ON rates.reaction_id = reactions.id
+--WHERE messages.tmsg_id =997 AND messages.chat_id =-146733825 AND reactions.description="test128293"
+"""
+
         if close:
             self.close()
 
@@ -62,7 +75,7 @@ class DBsqlite(object):
             self.connect()
             close = True
         try:
-            self.cursor.execute("INSERT INTO users (id, nickname, fname, lname) values (?, ?, ?, ?)",
+            self.cursor.execute("INSERT OR IGNORE INTO users (id, nickname, fname, lname) values (?, ?, ?, ?)",
 					(user.id, user.username, user.first_name, user.last_name)).fetchall()
         except sqlite3.Error as error:
             print ('An error occurred:', error.args[0])
