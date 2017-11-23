@@ -31,13 +31,16 @@ def button_callback(bot, update):
 #        reply_markup = get_buttons_markup(original_msg, res)
 #        bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
 
+
+
+
 def get_buttons_markup():
     keys = []
     keyboard = []
     max_cols = 4
     buttons = db.get_keyboard()
     for button in buttons:
-        text = chr(button[0])
+        text = chr(button[0]) + chr(button[2])
         name = button[1]
         keys.append(InlineKeyboardButton(text, callback_data=name))
     while keys:
@@ -51,7 +54,7 @@ def start(bot, update):
 def joined(bot, update):
     bot.send_message(update.message.chat_id,'I am joined' + str(update.message.new_chat_members))
     print(*update.message.new_chat_members)
-    db.register_chat([update.message.chat.id, update.message.chat.title, update.message.chat.username, update.message.chat.description])
+    db.register_chat(update.message)
 
 def error(bot, update, error):
     logger.warn('Update "%s" caused error "%s"'.format(update, error))
@@ -62,7 +65,9 @@ def resend_message(bot, update):
     if message.reply_to_message:
         return
     if message.photo:
-        bot.send_photo(chat_id = message.chat_id, photo=message.photo[0].file_id, disable_notification = True, reply_markup=reply_markup)
+        message_sent = bot.send_photo(chat_id = message.chat_id, photo=message.photo[0].file_id, disable_notification = True, reply_markup=reply_markup)
+        db.register_user(message.from_user)
+        db.register_message(message, message_sent)
     else:
         resend = False
     if resend:
