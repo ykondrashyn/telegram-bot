@@ -26,10 +26,9 @@ def button_callback(bot, update):
     query = update.callback_query
     message = query.message
     res = db.rate(query)
-#    if res:
-#        original_msg = db.original_message(query)
-#        reply_markup = get_buttons_markup(original_msg, res)
-#        bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
+    if res:
+        reply_markup = get_updated_buttons_markup(query)
+        bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
 
 
 
@@ -40,7 +39,36 @@ def get_buttons_markup():
     max_cols = 4
     buttons = db.get_keyboard()
     for button in buttons:
-        text = chr(button[0]) + chr(button[2])
+        text = chr(button[0]) + str(button[2])
+        name = button[1]
+        keys.append(InlineKeyboardButton(text, callback_data=name))
+    while keys:
+        keyboard += [keys[:max_cols]]
+        keys = keys[max_cols:]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_updated_buttons_markup(query):
+    keys = []
+    keyboard = []
+    max_cols = 4
+    buttons = db.get_updated_keyboard(query)
+    for button in buttons:
+        button = ['' if x is None else x for x in button]
+        text = chr(button[0]) + str(button[2])
+        name = button[1]
+        keys.append(InlineKeyboardButton(text, callback_data=name))
+    while keys:
+        keyboard += [keys[:max_cols]]
+        keys = keys[max_cols:]
+    return InlineKeyboardMarkup(keyboard)
+
+def get_buttons_markup():
+    keys = []
+    keyboard = []
+    max_cols = 4
+    buttons = db.get_keyboard()
+    for button in buttons:
+        text = chr(button[0])
         name = button[1]
         keys.append(InlineKeyboardButton(text, callback_data=name))
     while keys:
@@ -53,7 +81,6 @@ def start(bot, update):
 
 def joined(bot, update):
     bot.send_message(update.message.chat_id,'I am joined' + str(update.message.new_chat_members))
-    print(*update.message.new_chat_members)
     db.register_chat(update.message)
 
 def error(bot, update, error):
