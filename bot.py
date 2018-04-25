@@ -29,6 +29,7 @@ def button_callback(bot, update):
     if res:
         reply_markup = get_updated_buttons_markup(query)
         bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
+    bot.answer_callback_query(callback_query_id=query.id, show_alert=False, text=res)
 
 
 
