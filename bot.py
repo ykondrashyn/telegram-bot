@@ -11,7 +11,7 @@ from telegram import CallbackQuery
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # define sqlite setup statements
@@ -31,23 +31,6 @@ def button_callback(bot, update):
         bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
     bot.answer_callback_query(callback_query_id=query.id, show_alert=False, text=res)
 
-
-
-
-def get_buttons_markup():
-    keys = []
-    keyboard = []
-    max_cols = 4
-    buttons = db.get_keyboard()
-    for button in buttons:
-        text = chr(button[0]) + str(button[2])
-        name = button[1]
-        keys.append(InlineKeyboardButton(text, callback_data=name))
-    while keys:
-        keyboard += [keys[:max_cols]]
-        keys = keys[max_cols:]
-    return InlineKeyboardMarkup(keyboard)
-
 def get_updated_buttons_markup(query):
     keys = []
     keyboard = []
@@ -55,7 +38,7 @@ def get_updated_buttons_markup(query):
     buttons = db.get_updated_keyboard(query)
     for button in buttons:
         button = ['' if x is None else x for x in button]
-        text = chr(button[0]) + str(button[2])
+        text =  f"{button[0]} {button[2]}"
         name = button[1]
         keys.append(InlineKeyboardButton(text, callback_data=name))
     while keys:
@@ -69,7 +52,7 @@ def get_buttons_markup():
     max_cols = 4
     buttons = db.get_keyboard()
     for button in buttons:
-        text = chr(button[0])
+        text = button[0]
         name = button[1]
         keys.append(InlineKeyboardButton(text, callback_data=name))
     while keys:
@@ -110,7 +93,8 @@ def main():
 
     # We joined a chat
     # 
-    print(db.get_keyboard())
+
+    logger.debug("Reactions fetched from db:\n{}".format(' '.join(map(str, db.get_keyboard()))))
     get_buttons_markup()
     global reply_markup
     reply_markup = get_buttons_markup()
