@@ -149,19 +149,14 @@ class DBsqlite(object):
         return data 
 
     def register_message(self, message, message_sent):
-        
         if not self.connected:
             self.connect()
             close = True
         try:
-            print('INSERT INTO messages (id, tmsg_id, chat_id, user_id, forwarded_from_id) values \
-                ((?), (?), (SELECT id FROM chats WHERE tchat_id=?), \
-                (SELECT id FROM users WHERE tuser_id=?), (?));', \
-                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from))
             self.cursor.execute('INSERT INTO messages (id, tmsg_id, chat_id, user_id, forwarded_from_id) values \
                 ((?), (?), (SELECT id FROM chats WHERE tchat_id=?), \
                 (SELECT id FROM users WHERE tuser_id=?), (?));', \
-                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from)).fetchall()
+                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from.id)).fetchall()
         except sqlite3.Error as error:
             self.close()
             logging.debug('Terrible error has occurred:', error)
@@ -175,9 +170,6 @@ class DBsqlite(object):
             self.connect()
             close = True
         try:
-            print("INSERT OR IGNORE INTO users (id, tuser_id, nickname, fname, lname) \
-                values (?, ?, ?, ?, ?)", \
-                (None, user.id, user.username, user.first_name, user.last_name))
             self.cursor.execute("INSERT OR IGNORE INTO users (id, tuser_id, nickname, fname, lname) \
                 values (?, ?, ?, ?, ?)", \
                 (None, user.id, user.username, user.first_name, user.last_name)).fetchall()
