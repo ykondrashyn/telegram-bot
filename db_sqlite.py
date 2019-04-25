@@ -31,6 +31,65 @@ class DBsqlite(object):
         print("Closed")
         self.connected = False
 
+    def __getreactions(self, chat_id, message_id, user_id, chosen_emoji):
+        try:
+            self.cursor.execute("SELECT messages.tmsg_id, reactions.description, result FROM rates \
+                JOIN reactions ON rates.reaction_id = reactions.id \
+                JOIN messages ON rates.message_id = messages.id \
+                WHERE messages.tmsg_id=? AND messages.chat_id=(SELECT id FROM chats WHERE tchat_id=?) \
+                AND reactions.description=?", (message_id, chat_id, chosen_emoji))
+            reaction = self.cursor.fetchall()
+            for reaction_id, react, count in reaction:
+                self.cursor.execute(
+                "SELECT * FROM voters WHERE user_id=? AND reaction_id=(SELECT id from reactions WHERE description=?);",
+            (user_id, chosen_emoji))
+            rate = self.cursor.fetchone()
+            return reaction
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
+
+    def __writerates(self, message_id, user_id, chosen_emoji):
+        try:
+            self.cursor.execute("INSERT OR IGNORE INTO rates values (\
+            (SELECT id FROM messages WHERE tmsg_id=?),\
+            (SELECT id FROM reactions WHERE description=?),\
+            (SELECT 1));", \
+                                (message_id, chosen_emoji))
+            return self.cursor.fetchall()
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
+
+    def __updaterates(self, message_id, user_id, chosen_emoji):
+        try:
+            print(
+            "SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
+            (user_id, message_id))
+            self.cursor.execute(
+            "SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
+            (user_id, message_id))
+            isinvoters = self.cursor.fetchone()
+
+            logging.debug("UPDATING...")
+            self.cursor.execute("SELECT result from rates WHERE message_id=(SELECT id FROM messages WHERE tmsg_id=?) \
+                    AND reaction_id=(SELECT id from reactions WHERE description=?);", \
+                            (message_id, chosen_emoji))
+            result = self.cursor.fetchone()[0]
+            print(f"========= {result} ==========")
+            print("UPDATE rates SET result=?+1 \
+        WHERE message_id=(SELECT id from messages WHERE tmsg_id=?) \
+        AND reaction_id=(SELECT id from reactions WHERE description=?);", \
+                                (result, message_id, chosen_emoji))
+            self.cursor.execute("UPDATE rates SET result=?+1 \
+        WHERE message_id=(SELECT id from messages WHERE tmsg_id=?) \
+        AND reaction_id=(SELECT id from reactions WHERE description=?);", \
+                                (result, message_id, chosen_emoji))
+            return self.cursor.fetchall()
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
+
     def rate(self, query):
         if not self.connected:
             self.connect()
@@ -39,63 +98,30 @@ class DBsqlite(object):
         message_id = query.message.message_id
         user_id = query.from_user.id
         chosen_emoji = query.data
-        # change in to add_voter##self.add_user(query.from_user)
         try:
-            # get reactions for message
-            self.cursor.execute("SELECT messages.tmsg_id, reactions.description, result FROM rates \
-                JOIN reactions ON rates.reaction_id = reactions.id \
-                JOIN messages ON rates.message_id = messages.id \
-                WHERE messages.tmsg_id=? AND messages.chat_id=(SELECT id FROM chats WHERE tchat_id=?) \
-                AND reactions.description=?", (message_id, chat_id, chosen_emoji))
-            reaction = self.cursor.fetchall()
-            print(reaction)
-            for reaction_id, react, count in reaction:
-                print("SELECT * FROM voters WHERE user_id=? AND reaction_id=(SELECT id from reactions WHERE description=?);",
-                                 (user_id, chosen_emoji))
-                self.cursor.execute("SELECT * FROM voters WHERE user_id=? AND reaction_id=(SELECT id from reactions WHERE description=?);",
-                                 (user_id, chosen_emoji))
-                rate = self.cursor.fetchone()
-                logging.debug("RATE: {}".format(rate))
-            # write rates
+            reaction = self.__getreactions(chat_id, message_id, user_id, chosen_emoji)
             if not reaction:
-                self.cursor.execute("INSERT OR IGNORE INTO rates values (\
-                (SELECT id FROM messages WHERE tmsg_id=?),\
-                (SELECT id FROM reactions WHERE description=?),\
-                (SELECT 1));", \
-            (message_id, chosen_emoji))
+                self.__writerates(message_id, user_id, chosen_emoji)
             else:
-                print("SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
-                    (user_id, message_id))
-                self.cursor.execute("SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
-                    (user_id, message_id))
-                isinvoters = self.cursor.fetchone()
-                
-                logging.debug("UPDATING...")
-                self.cursor.execute("SELECT result from rates WHERE message_id=(SELECT id FROM messages WHERE tmsg_id=?) \
-                        AND reaction_id=(SELECT id from reactions WHERE description=?);", \
-                        (message_id, chosen_emoji))
-                result = self.cursor.fetchall()[0][0]
-                print(f"========= {result} ==========")
-                self.cursor.execute("UPDATE rates SET result=?+1 \
-        WHERE message_id=(SELECT id from messages WHERE tmsg_id=?) \
-        AND reaction_id=(SELECT id from reactions WHERE description=?);", \
-                (result, message_id, chosen_emoji))
+                self.__updaterates(message_id, user_id, chosen_emoji)
 
-            # write voters
-            #if not reaction:
-            self.cursor.execute("INSERT OR IGNORE INTO voters values ( \
-            (SELECT id from messages WHERE tmsg_id=?), \
-            (SELECT ?), \
-            (SELECT id from reactions WHERE description=?));", \
-        (message_id, user_id, chosen_emoji))
+
+            # get reactions for message
+            #self.cursor.execute("SELECT messages.tmsg_id, reactions.description, result FROM rates \
+            #    JOIN reactions ON rates.reaction_id = reactions.id \
+            #    JOIN messages ON rates.message_id = messages.id \
+            #    WHERE messages.tmsg_id=? AND messages.chat_id=(SELECT id FROM chats WHERE tchat_id=?) \
+            #    AND reactions.description=?", (message_id, chat_id, chosen_emoji))
+
+
         except sqlite3.Error as error:
             self.close()
             logging.debug('An error occurred:', error.args[0])
         logging.debug(query.message)
-        addposter = self.cursor.fetchall()
         if close:
             self.close()
-        return f"You've chosen \"{chosen_emoji}\""
+        #return f"You've chosen \"{chosen_emoji}\""
+        return ("You've chosen ", chosen_emoji)
 
 
     def get_updated_keyboard(self, query):
@@ -156,7 +182,7 @@ class DBsqlite(object):
             self.cursor.execute('INSERT INTO messages (id, tmsg_id, chat_id, user_id, forwarded_from_id) values \
                 ((?), (?), (SELECT id FROM chats WHERE tchat_id=?), \
                 (SELECT id FROM users WHERE tuser_id=?), (?));', \
-                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from.id)).fetchall()
+                (None, message_sent.message_id, message.chat.id, message.from_user.id, message.forward_from)).fetchall()
         except sqlite3.Error as error:
             self.close()
             logging.debug('Terrible error has occurred:', error)
