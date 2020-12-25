@@ -2,7 +2,7 @@
 
 from db_sqlite import DBsqlite
 from telegram import Bot, Update, Message
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackQueryHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
 import logging
 from config import *
 
@@ -11,7 +11,7 @@ from telegram import CallbackQuery
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                    level=logging.INFO)
+                    level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 # define sqlite setup statements
@@ -22,14 +22,14 @@ db = DBsqlite(database, sqlitesetupstatements)
 # Define a few command handlers. These usually take the two arguments bot and
 # update. Error handlers also receive the raised TelegramError object in error.
 
-def button_callback(bot, update):
+def button_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     message = query.message
     res = db.rate(query)
     if res:
         reply_markup = get_updated_buttons_markup(query)
-        bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
-    bot.answer_callback_query(callback_query_id=query.id, show_alert=False, text=res)
+        context.bot.edit_message_reply_markup(chat_id=message.chat_id, message_id=message.message_id, reply_markup=reply_markup)
+    context.bot.answer_callback_query(callback_query_id=query.id, show_alert=False, text=res)
 
 def get_updated_buttons_markup(query):
     keys = []
@@ -60,23 +60,23 @@ def get_buttons_markup():
         keys = keys[max_cols:]
     return InlineKeyboardMarkup(keyboard)
 
-def start(bot, update):
+def start(update: Update, context: CallbackContext)-> None:
     update.message.reply_text("Bot has started\n" + update.message.status_update.new_chat_members)
 
-def joined(bot, update):
-    bot.send_message(update.message.chat_id,'I am joined' + str(update.message.new_chat_members))
+def joined(update: Update, context: CallbackContext):
+    context.bot.send_message(update.message.chat_id,'I am joined' + str(update.message.new_chat_members))
     db.register_chat(update.message)
 
-def error(bot, update, error):
-    logger.warn('Update "%s" caused error "%s"'.format(update, error))
+def error(update: Update, context: CallbackContext):
+    logger.warning(f"Update {update} caused error {context.error}")
 
-def resend_message(bot, update):
+def resend_message(update: Update, context: CallbackContext):
     resend = True
     message = update.message
     if message.reply_to_message:
         return
     if message.photo:
-        message_sent = bot.send_photo(chat_id = message.chat_id, photo=message.photo[0].file_id, disable_notification = True, reply_markup=reply_markup)
+        message_sent = context.bot.send_photo(chat_id = message.chat_id, photo=message.photo[0].file_id, disable_notification = True, reply_markup=reply_markup)
         db.register_user(message.from_user)
         db.register_message(message, message_sent)
     else:

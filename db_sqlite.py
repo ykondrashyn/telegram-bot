@@ -51,6 +51,7 @@ class DBsqlite(object):
 
     def __writerates(self, message_id, user_id, chosen_emoji):
         try:
+            logging.debug("Inserting new values...")
             self.cursor.execute("INSERT OR IGNORE INTO rates values (\
             (SELECT id FROM messages WHERE tmsg_id=?),\
             (SELECT id FROM reactions WHERE description=?),\
@@ -63,9 +64,6 @@ class DBsqlite(object):
 
     def __updaterates(self, message_id, user_id, chosen_emoji):
         try:
-            print(
-            "SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
-            (user_id, message_id))
             self.cursor.execute(
             "SELECT reaction_id FROM voters WHERE user_id=? AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);",
             (user_id, message_id))
@@ -76,11 +74,7 @@ class DBsqlite(object):
                     AND reaction_id=(SELECT id from reactions WHERE description=?);", \
                             (message_id, chosen_emoji))
             result = self.cursor.fetchone()[0]
-            print(f"========= {result} ==========")
-            print("UPDATE rates SET result=?+1 \
-        WHERE message_id=(SELECT id from messages WHERE tmsg_id=?) \
-        AND reaction_id=(SELECT id from reactions WHERE description=?);", \
-                                (result, message_id, chosen_emoji))
+
             self.cursor.execute("UPDATE rates SET result=?+1 \
         WHERE message_id=(SELECT id from messages WHERE tmsg_id=?) \
         AND reaction_id=(SELECT id from reactions WHERE description=?);", \
