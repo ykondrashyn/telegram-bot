@@ -1,4 +1,4 @@
 # -*- coding: utf-8 -*-
 
-token      = '247212165:AAGUHA5pjhuuH0_Dw7GWdihI1f_oMag8zTw'
+token      = '247212165:AAGuBCwTDyDEn5cghexVUT8mEV3Y11xa9Hk'
 database   = 'bitdb.db'
