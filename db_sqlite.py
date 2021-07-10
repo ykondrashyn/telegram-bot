@@ -39,14 +39,14 @@ class DBsqlite(object):
                 JOIN reactions ON rates.reaction_id = reactions.id \
                 JOIN messages ON rates.message_id = messages.id \
             WHERE messages.tmsg_id=? AND messages.chat_id=(SELECT id FROM chats WHERE tchat_id=?) \
-                AND reactions.description=?
+                AND reactions.description=(?);
             """, (message_id, chat_id, chosen_emoji))
             
             reaction = self.cursor.fetchall()
             for reaction_id, react, count in reaction:
                 self.cursor.execute(
             """
-            SELECT * FROM voters WHERE user_id=? AND reaction_id=(SELECT id FROM reactions WHERE description=?);
+            SELECT * FROM voters WHERE user_id=(SELECT id FROM users WHERE tuser_id=?) AND reaction_id=(SELECT id FROM reactions WHERE description=?);
             """, (user_id, chosen_emoji))
 
             rate = self.cursor.fetchone()
@@ -75,24 +75,53 @@ class DBsqlite(object):
             logging.debug("UPDATING...")
             self.cursor.execute(
             """
-            SELECT reaction_id FROM voters WHERE user_id=? \
-                AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);
-            """, (user_id, message_id))
+            UPDATE rates SET result=?+1 \
+            WHERE message_id=(SELECT id FROM messages WHERE tmsg_id=?) \
+            AND reaction_id=(SELECT id FROM reactions WHERE description=?);
+            """, (self.__get_msg_rate(message_id, user_id, chosen_emoji), \
+                message_id, chosen_emoji))
+            return self.cursor.fetchall()
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
 
-            isinvoters = self.cursor.fetchone()
+    def __get_msg_rate(self, message_id, user_id, chosen_emoji):
+        logging.debug("FETCHING RATE OF MESSAGE...")
+        try:
             self.cursor.execute(
             """
             SELECT result FROM rates WHERE message_id=(SELECT id FROM messages WHERE tmsg_id=?) \
                 AND reaction_id=(SELECT id FROM reactions WHERE description=?);
             """, (message_id, chosen_emoji))
+            return self.cursor.fetchone()[0]
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
 
-            result = self.cursor.fetchone()[0]
+
+    def __getvote(self, message_id, user_id, chosen_emoji):
+        logging.debug("FETCHING VOTE...")
+        try:
             self.cursor.execute(
             """
-            UPDATE rates SET result=?+1 \
-            WHERE message_id=(SELECT id FROM messages WHERE tmsg_id=?) \
-            AND reaction_id=(SELECT id FROM reactions WHERE description=?);
-            """, (result, message_id, chosen_emoji))
+            SELECT reaction_id FROM voters WHERE user_id=? \
+                AND message_id=(SELECT id FROM messages WHERE tmsg_id=?);
+            """, (user_id, message_id))
+            return self.cursor.fetchone()
+        except sqlite3.Error as error:
+            self.close()
+            logging.debug('An error occurred:', error.args[0])
+
+    def __updatevoters(self, message_id, user_id, chosen_emoji):
+        logging.debug("UPDATING VOTERS...")
+        try:
+            self.cursor.execute(
+            """
+            INSERT INTO voters (message_id, user_id,reaction_id) values (\
+                    (SELECT id FROM messages WHERE tmsg_id=?), (SELECT id FROM users WHERE tuser_id=?), \
+                    (SELECT id FROM reactions WHERE description=?));
+            """,
+                (message_id, user_id, chosen_emoji)).fetchall()
             return self.cursor.fetchall()
         except sqlite3.Error as error:
             self.close()
@@ -107,8 +136,10 @@ class DBsqlite(object):
         user_id = query.from_user.id
         chosen_emoji = query.data
         try:
+            self.__updatevoters(message_id, user_id, chosen_emoji);
             reaction = self.__getreactions(chat_id, message_id, user_id, chosen_emoji)
             if not reaction:
+                # First time someone reacts to this message
                 self.__writerates(message_id, user_id, chosen_emoji)
             else:
                 self.__updaterates(message_id, user_id, chosen_emoji)
@@ -183,8 +214,6 @@ class DBsqlite(object):
         # close connection if one was opened
         if close:
             self.close()
-        logging.debug('keyboard')
-        logging.debug(data) 
         return data 
 
     def register_message(self, message, message_sent):
@@ -224,6 +253,7 @@ class DBsqlite(object):
         # close connection if one was opened
         if close:
             self.close()
+
 
     def register_chat(self, message):
         
