@@ -143,16 +143,6 @@ class DBsqlite(object):
                 self.__writerates(message_id, user_id, chosen_emoji)
             else:
                 self.__updaterates(message_id, user_id, chosen_emoji)
-
-
-            # get reactions for message
-            #self.cursor.execute("SELECT messages.tmsg_id, reactions.description, result FROM rates \
-            #    JOIN reactions ON rates.reaction_id = reactions.id \
-            #    JOIN messages ON rates.message_id = messages.id \
-            #    WHERE messages.tmsg_id=? AND messages.chat_id=(SELECT id FROM chats WHERE tchat_id=?) \
-            #    AND reactions.description=?", (message_id, chat_id, chosen_emoji))
-
-
         except sqlite3.Error as error:
             self.close()
             logging.debug('An error occurred:', error.args[0])
