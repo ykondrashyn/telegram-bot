@@ -25,6 +25,7 @@ db = DBsqlite(database, sqlitesetupstatements)
 def button_callback(update: Update, context: CallbackContext):
     query = update.callback_query
     message = query.message
+    db.register_user(query.from_user)
     res = db.rate(query)
     if res:
         reply_markup = get_updated_buttons_markup(query)
