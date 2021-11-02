@@ -2,7 +2,14 @@
 
 from db_sqlite import DBsqlite
 from telegram import Bot, Update, Message
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, CallbackContext, CallbackQueryHandler
+from telegram.ext import (
+        Updater,
+        CommandHandler,
+        MessageHandler,
+        Filters,
+        CallbackContext,
+        CallbackQueryHandler
+)
 import logging
 from config import *
 

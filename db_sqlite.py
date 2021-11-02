@@ -261,7 +261,10 @@ class DBsqlite(object):
             logging.debug("NO PREV VOTES")
             # no one voted yet for this message_id, thus creating a new entry there
             self.__insert_voter(message_id, user_id, chosen_emoji)
-            self.__writerates(message_id, user_id, chosen_emoji)
+            if rate:
+                self.__inc_msg_rate(message_id, user_id, chosen_emoji)
+            else:
+                self.__writerates(message_id, user_id, chosen_emoji)
         except sqlite3.Error as error:
             self.close()
             logging.debug('An error occurred:', error.args[0])
